@@ -4,14 +4,13 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.sqlite.db.SupportSQLiteDatabase
 import com.hanenashi.chirpie2.data.model.Bird
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-@Database(entities = [Bird::class], version = 1, exportSchema = false)
+@Database(entities = [Bird::class], version = 2, exportSchema = false)
 abstract class ChirpieDatabase : RoomDatabase() {
     abstract fun birdDao(): BirdDao
 
@@ -20,59 +19,31 @@ abstract class ChirpieDatabase : RoomDatabase() {
         private var instance: ChirpieDatabase? = null
 
         fun getInstance(context: Context): ChirpieDatabase {
+            val appContext = context.applicationContext
             return instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
-                    context.applicationContext,
+                    appContext,
                     ChirpieDatabase::class.java,
                     "chirpie.db"
                 )
-                    .addCallback(SeedDatabaseCallback)
+                    .fallbackToDestructiveMigration(false)
                     .build()
-                    .also { instance = it }
+                    .also { database ->
+                        instance = database
+                        seedFromAssetsIfNeeded(appContext, database)
+                    }
             }
         }
 
-        private object SeedDatabaseCallback : Callback() {
-            private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-            override fun onCreate(db: SupportSQLiteDatabase) {
-                super.onCreate(db)
-                instance?.let { database ->
-                    scope.launch {
-                        database.birdDao().insertAll(seedBirds)
-                    }
+        private fun seedFromAssetsIfNeeded(
+            context: Context,
+            database: ChirpieDatabase
+        ) {
+            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                if (database.birdDao().birdCount() == 0) {
+                    database.birdDao().insertAll(BirdAssetSeeder.load(context.assets))
                 }
             }
         }
-
-        private val seedBirds = listOf(
-            Bird(
-                englishName = "Eurasian Blue Tit",
-                romanizedJapaneseName = "Ruribitaki",
-                kanjiJapaneseName = "瑠璃鶲",
-                czechName = "Sýkora modřinka",
-                scientificName = "Cyanistes caeruleus",
-                imageUrl = "https://example.com/blue_tit.jpg",
-                audioAssetPath = "audio/blue_tit.mp3"
-            ),
-            Bird(
-                englishName = "Common Blackbird",
-                romanizedJapaneseName = "Kurotsugumi",
-                kanjiJapaneseName = "黒鶫",
-                czechName = "Kos černý",
-                scientificName = "Turdus merula",
-                imageUrl = "https://example.com/blackbird.jpg",
-                audioAssetPath = "audio/blackbird.mp3"
-            ),
-            Bird(
-                englishName = "Barn Swallow",
-                romanizedJapaneseName = "Tsubame",
-                kanjiJapaneseName = "燕",
-                czechName = "Vlaštovka obecná",
-                scientificName = "Hirundo rustica",
-                imageUrl = "https://example.com/barn_swallow.jpg",
-                audioAssetPath = "audio/barn_swallow.mp3"
-            )
-        )
     }
 }

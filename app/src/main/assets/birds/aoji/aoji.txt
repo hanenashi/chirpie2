@@ -1,0 +1,6 @@
+id=52
+romanized=aoji
+kanji=蒿雀
+scientific=Emberiza spodocephala
+english=black-faced bunting
+czech=strnad šedokápý

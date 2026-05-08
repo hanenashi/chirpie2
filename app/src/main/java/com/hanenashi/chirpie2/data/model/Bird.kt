@@ -5,8 +5,8 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "birds")
 data class Bird(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
+    @PrimaryKey
+    val id: Long,
     val englishName: String,
     val romanizedJapaneseName: String,
     val kanjiJapaneseName: String,
@@ -14,4 +14,9 @@ data class Bird(
     val scientificName: String,
     val imageUrl: String,
     val audioAssetPath: String
-)
+) {
+    fun audioAssetPaths(): List<String> = audioAssetPath
+        .lines()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+}

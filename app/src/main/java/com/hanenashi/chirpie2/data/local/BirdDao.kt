@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BirdDao {
-    @Query("SELECT * FROM birds ORDER BY englishName ASC")
+    @Query("SELECT * FROM birds ORDER BY id ASC")
     fun observeAllBirds(): Flow<List<Bird>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

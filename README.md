@@ -1,45 +1,132 @@
 # Chirpie 2
 
-## Summary
-Chirpie 2 is a native Android encyclopedia and field guide application for birds. It is designed to catalog bird species with robust multilingual support (including English, Romanized Japanese, Kanji, Czech, and Scientific names) alongside multimedia elements like high-quality images and audio chirps. 
+Chirpie 2 is the native Android port of the web-based Chirpie bird guide at
+https://github.com/hanenashi/chirpie.
 
-Repository: [https://github.com/hanenashi/chirpie2.git](https://github.com/hanenashi/chirpie2.git)
+The app currently ships the Chirpie bird library offline using Android assets:
+bird illustrations, metadata text files, and MP3 bird calls are bundled into
+the app and loaded into a local Room database on first launch.
 
-## Tech Proposition
-To ensure modern performance, maintainability, and scalability, Chirpie 2 is built using the latest Android development standards:
-* **Language:** Kotlin
-* **UI Toolkit:** Jetpack Compose (Declarative UI)
-* **Architecture:** MVVM (Model-View-ViewModel) for clear separation of concerns
-* **Local Storage:** Room Database (SQLite wrapper) for fast, queryable local data access
-* **Image Loading:** Coil (lightweight, Kotlin-first image loading)
-* **Audio:** Native Android `MediaPlayer` API
+## Current State
 
-## Required Software (Windows 11)
-To build, compile, and run this project on a Windows 11 machine, you will need the following installed:
-1. **Android Studio:** The official IDE (download the latest stable version, which bundles the necessary JDK).
-2. **Git for Windows:** To clone, commit, and push to this repository.
-3. **Android Emulator / Physical Device:** Set up an emulator via Android Studio's Device Manager, or enable "USB Debugging" on a physical Android device to test the app.
+This checkpoint runs on Android and has been tested on a Pixel 8.
 
-## Basic Roadmap Skeleton
-This roadmap outlines the development phases for Chirpie 2. We can update this as features are completed.
+- Real Chirpie web assets imported:
+  - 51 bird images
+  - 79 MP3 bird calls
+  - 51 metadata text files
+  - `birds.json`
+- Room database seeded from bundled assets.
+- Jetpack Compose dark UI.
+- Square image grid of bird cards.
+- Bird detail dialog with Japanese, romanized, English, scientific, and Czech names.
+- Multiple MP3 playback buttons per bird using Android `MediaPlayer`.
+- Gradle wrapper added for repeatable builds.
 
-- [ ] **Phase 1: Project Initialization**
-  - Initialize Git repo and push to GitHub.
-  - Create the base Android Studio project (Empty Compose Activity).
-  - Setup basic MVVM package structure (`data`, `ui`, `viewmodel`).
-- [ ] **Phase 2: The Data Layer**
-  - Create the Kotlin Data Class (`Bird.kt`) matching the multilingual text fields.
-  - Set up Room Database for local data storage and querying.
-  - Populate the database with initial bird data.
-- [ ] **Phase 3: The UI Layer (Jetpack Compose)**
-  - Build the **List Screen**: A scrolling `LazyColumn` displaying bird names and thumbnails.
-  - Build the **Detail Screen**: A screen showing all translated names, a large image, and an audio play button.
-  - Implement navigation between the List and Detail screens.
-- [ ] **Phase 4: Multimedia Integration**
-  - Integrate Coil to load bird images seamlessly.
-  - Integrate `MediaPlayer` to handle playing bird calls/songs on the Detail Screen.
-- [ ] **Phase 5: Polish & Deployment**
-  - UI styling, theme implementation (Dark/Light mode support).
-  - Performance profiling and bug fixing.
-  - Generate signed APK/App Bundle for distribution.
-  - 
+## Tech Stack
+
+- Kotlin
+- Jetpack Compose
+- Room
+- Coil
+- Android `MediaPlayer`
+- Gradle wrapper
+
+## Build
+
+Open the repository folder in Android Studio:
+
+```text
+C:\GIT\chirpie2
+```
+
+Then run the `app` configuration on an emulator or physical Android device.
+
+Command-line debug build:
+
+```powershell
+.\gradlew.bat :app:assembleDebug
+```
+
+The current Gradle setup uses Android Gradle Plugin 9.x and has a few warning
+flags in `gradle.properties` from the initial Android Studio/Gemini upgrade.
+The app builds successfully, but those warnings should be cleaned up later.
+
+## Asset Layout
+
+Bird data is intentionally kept close to the original web Chirpie layout:
+
+```text
+app/src/main/assets/birds.json
+app/src/main/assets/birds/kogera/kogera.txt
+app/src/main/assets/birds/kogera/kogera.jpg
+app/src/main/assets/birds/kogera/kogera_ch.mp3
+app/src/main/assets/birds/kogera/kogera_d.mp3
+```
+
+Each text file uses simple key/value metadata:
+
+```text
+id=7
+romanized=kogera
+kanji=コゲラ
+scientific=Yungipicus kizuki
+english=Japanese Pygmy Woodpecker
+czech=Strakapoud japonský
+```
+
+This should make future bird additions straightforward: add a folder with a
+text file, image, and MP3 files, then rebuild the app. A helper script for this
+workflow is planned.
+
+## Roadmap
+
+### Near Term
+
+- Polish the current grid:
+  - white square card backgrounds
+  - cleaner detail dialog sizing
+  - better image fit consistency
+- Add display modes:
+  - card grid
+  - compact list with names and play buttons in each row
+- Add settings:
+  - display mode
+  - active list
+  - sort/order options
+  - reset order
+- Add local ordering:
+  - long press to enter arrange mode
+  - wiggle state
+  - drag/rearrange cards
+  - confirm/cancel
+  - save order locally
+
+### Mid Term
+
+- Saved bird lists:
+  - all birds
+  - summer birds
+  - winter birds
+  - favorites or study lists
+- Sorting presets:
+  - custom order
+  - Japanese
+  - English
+  - Czech
+  - scientific name
+- In-app text editing for bird metadata.
+- Reset edited text back to bundled source data.
+
+### Later
+
+- Easier project-side bird import helper for JPG/PNG, MP3, and TXT files.
+- Optional in-app media import.
+- Custom transparent PNG graphics for playback buttons and other controls.
+- More complete parity with the original web Chirpie settings/edit behavior.
+
+## Notes
+
+- The bundled asset data comes from the web Chirpie repository at commit
+  `77717442bb1cf9373dbc5a0b253615a533fe9338`.
+- Generated Android build output under `app/build/` is ignored.
