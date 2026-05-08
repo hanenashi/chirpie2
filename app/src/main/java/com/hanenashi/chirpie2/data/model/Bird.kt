@@ -1,12 +1,17 @@
 package com.hanenashi.chirpie2.data.model
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "birds")
 data class Bird(
-    val id: Long,
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
     val englishName: String,
-    val japaneseRomanized: String,
-    val japaneseKanji: String,
+    val romanizedJapaneseName: String,
+    val kanjiJapaneseName: String,
     val czechName: String,
     val scientificName: String,
-    val imagePath: String,
-    val audioPath: String
+    val imageUrl: String,
+    val audioAssetPath: String
 )
