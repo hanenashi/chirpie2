@@ -32,6 +32,9 @@ interface BirdDao {
     @Query("SELECT COALESCE(MAX(sortIndex), -1) + 1 FROM birds")
     suspend fun nextSortIndex(): Long
 
+    @Query("DELETE FROM birds WHERE id = :birdId")
+    suspend fun deleteBird(birdId: Long)
+
     @Query("UPDATE birds SET sortIndex = :sortIndex WHERE id = :birdId")
     suspend fun updateSortIndex(birdId: Long, sortIndex: Long)
 

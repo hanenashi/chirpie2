@@ -47,6 +47,7 @@ class BirdListViewModel(
             displayMode = settings.displayMode,
             sortOrder = settings.sortOrder,
             activeList = settings.activeList,
+            gridColumns = settings.gridColumns,
             membershipsByBird = membershipsByBird,
             importStatus = currentImportStatus,
             isLoading = false
@@ -68,6 +69,10 @@ class BirdListViewModel(
 
     fun setActiveList(activeList: BirdList) {
         preferences.setActiveList(activeList)
+    }
+
+    fun setGridColumns(gridColumns: Int) {
+        preferences.setGridColumns(gridColumns)
     }
 
     fun setListMembership(birdId: Long, list: BirdList, isMember: Boolean) {
@@ -107,6 +112,12 @@ class BirdListViewModel(
         }
     }
 
+    fun deleteCustomBird(bird: Bird) {
+        viewModelScope.launch {
+            repository.deleteCustomBird(bird)
+        }
+    }
+
     fun clearImportMessage() {
         importStatus.value = CustomBirdImportStatus()
     }
@@ -131,6 +142,7 @@ data class BirdListUiState(
     val displayMode: DisplayMode = DisplayMode.Grid,
     val sortOrder: SortOrder = SortOrder.Custom,
     val activeList: BirdList = BirdList.All,
+    val gridColumns: Int = 3,
     val membershipsByBird: Map<Long, Set<BirdList>> = emptyMap(),
     val importStatus: CustomBirdImportStatus = CustomBirdImportStatus(),
     val isLoading: Boolean = true

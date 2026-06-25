@@ -25,7 +25,8 @@ Bundled assets / custom document picker
 - `BirdRepository` owns database writes, metadata reset, and custom media copy.
 - `BirdListViewModel` combines Room flows with persistent display/filter
   settings and exposes one UI state.
-- `BirdPreferences` stores display mode, active list, and sort order.
+- `BirdPreferences` stores display mode, active list, sort order, and grid
+  column density.
 - `BirdListScreen` renders grid/list modes, details, settings, editing,
   arrangement, saved-list membership, and custom import.
 

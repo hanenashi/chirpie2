@@ -14,6 +14,10 @@ as release-ready.
 
 - Switch between card grid and compact list; restart and confirm persistence.
 - Open several bird details and play every available call.
+- Confirm the active call shows a stop icon.
+- Tap the active button again and confirm playback stops.
+- Start a call, tap elsewhere in the app, and confirm playback stops.
+- Start a call and use the system back gesture/button; confirm playback continues.
 - Confirm starting another call stops the previous one.
 - Verify images fit correctly in grid, list, and detail views.
 
@@ -21,8 +25,13 @@ as release-ready.
 
 - Exercise every name sort and confirm the expected language ordering.
 - Reset to custom order.
-- Long-press a card, drag it across rows, then cancel; confirm no order change.
-- Repeat and save; restart the app and confirm the order persists.
+- Long-press and drag cards and compact-list rows across several positions.
+- Confirm the dragged item lifts and follows the finger while neighboring items
+  animate aside.
+- Drag near the top and bottom edges and confirm the collection auto-scrolls.
+- Release and restart the app; confirm the order persists.
+- Pinch inward and outward across all two-to-six-column density steps.
+- Restart the app and confirm the selected grid density persists.
 
 ## Saved lists and text editing
 
@@ -38,6 +47,8 @@ as release-ready.
 - Confirm imported images render in grid/list/detail views.
 - Confirm all imported calls play after restarting the app.
 - Move or delete the original source files and confirm playback still works.
+- Delete an imported bird, cancel at the warning once, then confirm deletion.
+- Restart and confirm the deleted bird and copied media stay removed.
 - Try canceling each picker and confirm the form remains usable.
 - Try a provider-backed document such as Google Drive if available.
 

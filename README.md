@@ -26,7 +26,9 @@ flows listed in [docs/TESTING.md](docs/TESTING.md) still need device testing.
 - Per-row bird names and playback controls in compact list mode.
 - Persistent display mode and name-sorting settings.
 - Settings dialog with active-list placeholder and order reset.
-- Long-press grid arrangement with wiggle feedback, drag reordering, and save/cancel.
+- Native long-press reordering in both grid and list modes with lift, haptic,
+  animated placement, edge auto-scroll, and drop persistence.
+- Pinch-to-resize grid density from two to six persistent columns.
 - Custom bird order persisted in Room with a non-destructive database migration.
 - Persistent Summer, Winter, Favorites, and Study bird lists.
 - Active-list filtering and per-bird list membership controls.
@@ -37,6 +39,8 @@ flows listed in [docs/TESTING.md](docs/TESTING.md) still need device testing.
 - Bird detail dialog with Japanese, romanized, English, scientific, and Czech names.
 - Responsive, scrollable bird detail dialog for smaller screens.
 - Multiple MP3 playback buttons per bird using Android `MediaPlayer`.
+- Icon-based play/stop controls with tap-anywhere stop behavior.
+- Confirmed deletion of imported birds and their app-private media.
 - Gradle wrapper added for repeatable builds.
 
 ## Tech Stack

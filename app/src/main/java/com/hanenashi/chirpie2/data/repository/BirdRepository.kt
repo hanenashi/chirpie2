@@ -117,6 +117,14 @@ class BirdRepository(
         }
     }
 
+    suspend fun deleteCustomBird(bird: Bird) = withContext(Dispatchers.IO) {
+        require(!bird.imageUrl.startsWith("file:///android_asset/")) {
+            "Bundled birds cannot be deleted."
+        }
+        birdDao.deleteBird(bird.id)
+        File(appContext.filesDir, "custom_birds/${bird.id}").deleteRecursively()
+    }
+
     private fun copyUri(uri: Uri, destination: File) {
         val input = appContext.contentResolver.openInputStream(uri)
             ?: error("Could not open selected file.")

@@ -24,6 +24,10 @@ class BirdPreferences(context: Context) {
         updateSettings(mutableSettings.value.copy(activeList = activeList))
     }
 
+    fun setGridColumns(gridColumns: Int) {
+        updateSettings(mutableSettings.value.copy(gridColumns = gridColumns.coerceIn(2, 6)))
+    }
+
     fun resetOrder() {
         setSortOrder(SortOrder.Custom)
     }
@@ -33,6 +37,7 @@ class BirdPreferences(context: Context) {
             putString(KEY_DISPLAY_MODE, settings.displayMode.name)
             putString(KEY_SORT_ORDER, settings.sortOrder.name)
             putString(KEY_ACTIVE_LIST, settings.activeList.name)
+            putInt(KEY_GRID_COLUMNS, settings.gridColumns)
         }
         mutableSettings.value = settings
     }
@@ -40,7 +45,8 @@ class BirdPreferences(context: Context) {
     private fun loadSettings(): BirdSettings = BirdSettings(
         displayMode = preferences.enumValue(KEY_DISPLAY_MODE, DisplayMode.Grid),
         sortOrder = preferences.enumValue(KEY_SORT_ORDER, SortOrder.Custom),
-        activeList = preferences.enumValue(KEY_ACTIVE_LIST, BirdList.All)
+        activeList = preferences.enumValue(KEY_ACTIVE_LIST, BirdList.All),
+        gridColumns = preferences.getInt(KEY_GRID_COLUMNS, 3).coerceIn(2, 6)
     )
 
     private inline fun <reified T : Enum<T>> android.content.SharedPreferences.enumValue(
@@ -56,13 +62,15 @@ class BirdPreferences(context: Context) {
         const val KEY_DISPLAY_MODE = "display_mode"
         const val KEY_SORT_ORDER = "sort_order"
         const val KEY_ACTIVE_LIST = "active_list"
+        const val KEY_GRID_COLUMNS = "grid_columns"
     }
 }
 
 data class BirdSettings(
     val displayMode: DisplayMode = DisplayMode.Grid,
     val sortOrder: SortOrder = SortOrder.Custom,
-    val activeList: BirdList = BirdList.All
+    val activeList: BirdList = BirdList.All,
+    val gridColumns: Int = 3
 )
 
 enum class DisplayMode(val label: String) {

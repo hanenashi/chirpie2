@@ -2,14 +2,16 @@ package com.hanenashi.chirpie2.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +31,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items as listItems
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
@@ -39,6 +42,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -47,19 +52,29 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
@@ -71,6 +86,7 @@ import com.hanenashi.chirpie2.data.preferences.BirdList
 import com.hanenashi.chirpie2.data.preferences.DisplayMode
 import com.hanenashi.chirpie2.data.preferences.SortOrder
 import com.hanenashi.chirpie2.viewmodel.CustomBirdImportStatus
+import kotlinx.coroutines.launch
 
 @Composable
 fun BirdListScreen(
@@ -78,17 +94,22 @@ fun BirdListScreen(
     displayMode: DisplayMode,
     sortOrder: SortOrder,
     activeList: BirdList,
+    gridColumns: Int,
     membershipsByBird: Map<Long, Set<BirdList>>,
     importStatus: CustomBirdImportStatus,
     isLoading: Boolean,
-    onPlayAudio: (String) -> Unit,
+    playingAudioAsset: String?,
+    onToggleAudio: (String) -> Unit,
+    onScreenPress: () -> Unit,
     onDisplayModeChange: (DisplayMode) -> Unit,
     onSortOrderChange: (SortOrder) -> Unit,
     onActiveListChange: (BirdList) -> Unit,
+    onGridColumnsChange: (Int) -> Unit,
     onListMembershipChange: (Long, BirdList, Boolean) -> Unit,
     onUpdateTextMetadata: (BirdTextMetadata) -> Unit,
     onResetTextMetadata: (Long) -> Unit,
     onImportCustomBird: (CustomBirdImport) -> Unit,
+    onDeleteCustomBird: (Bird) -> Unit,
     onDismissImportMessage: () -> Unit,
     onResetOrder: () -> Unit,
     onSaveOrder: (List<Long>) -> Unit,
@@ -98,6 +119,7 @@ fun BirdListScreen(
     var editingBirdId by remember { mutableStateOf<Long?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showCustomBirdImport by remember { mutableStateOf(false) }
+    var birdPendingDeletion by remember { mutableStateOf<Bird?>(null) }
     var arrangedBirds by remember { mutableStateOf<List<Bird>?>(null) }
 
     if (isLoading) {
@@ -117,45 +139,67 @@ fun BirdListScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .pointerInput(playingAudioAsset) {
+                if (playingAudioAsset != null) {
+                    awaitPointerEventScope {
+                        awaitPointerEvent(pass = PointerEventPass.Initial)
+                        onScreenPress()
+                    }
+                }
+            }
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        if (arrangedBirds != null) {
-            ArrangeModeBar(
-                onCancel = { arrangedBirds = null },
-                onConfirm = {
-                    onSaveOrder(arrangedBirds.orEmpty().map(Bird::id))
-                    arrangedBirds = null
-                }
-            )
-        } else {
-            DisplayModeSelector(
-                displayMode = displayMode,
-                onDisplayModeChange = onDisplayModeChange,
-                onAddCustomBird = { showCustomBirdImport = true },
-                onOpenSettings = { showSettings = true }
-            )
-        }
+        DisplayModeSelector(
+            displayMode = displayMode,
+            gridColumns = gridColumns,
+            onDisplayModeChange = onDisplayModeChange,
+            onAddCustomBird = { showCustomBirdImport = true },
+            onOpenSettings = { showSettings = true }
+        )
 
         when (displayMode) {
             DisplayMode.Grid -> BirdGrid(
                 birds = arrangedBirds ?: birds,
-                isArrangeMode = arrangedBirds != null,
+                gridColumns = gridColumns,
                 canArrange = activeList == BirdList.All && sortOrder == SortOrder.Custom,
                 onBirdClick = { selectedBirdId = it.id },
+                onGridColumnsChange = onGridColumnsChange,
                 onStartArrange = {
                     if (arrangedBirds == null) arrangedBirds = birds
                 },
                 onMoveBird = { fromIndex, toIndex ->
                     arrangedBirds = arrangedBirds?.move(fromIndex, toIndex)
+                },
+                onFinishArrange = {
+                    arrangedBirds?.let { onSaveOrder(it.map(Bird::id)) }
+                    arrangedBirds = null
+                },
+                onCancelArrange = {
+                    arrangedBirds = null
                 }
             )
 
             DisplayMode.List -> BirdCompactList(
-                birds = birds,
+                birds = arrangedBirds ?: birds,
+                canArrange = activeList == BirdList.All && sortOrder == SortOrder.Custom,
                 onBirdClick = { selectedBirdId = it.id },
-                onPlayAudio = onPlayAudio
+                playingAudioAsset = playingAudioAsset,
+                onToggleAudio = onToggleAudio,
+                onStartArrange = {
+                    if (arrangedBirds == null) arrangedBirds = birds
+                },
+                onMoveBird = { fromIndex, toIndex ->
+                    arrangedBirds = arrangedBirds?.move(fromIndex, toIndex)
+                },
+                onFinishArrange = {
+                    arrangedBirds?.let { onSaveOrder(it.map(Bird::id)) }
+                    arrangedBirds = null
+                },
+                onCancelArrange = {
+                    arrangedBirds = null
+                }
             )
         }
     }
@@ -166,10 +210,14 @@ fun BirdListScreen(
             bird = bird,
             memberships = membershipsByBird[bird.id].orEmpty(),
             onDismiss = { selectedBirdId = null },
-            onPlayAudio = onPlayAudio,
+            playingAudioAsset = playingAudioAsset,
+            onToggleAudio = onToggleAudio,
+            onScreenPress = onScreenPress,
             onEdit = { editingBirdId = bird.id },
             onResetText = { onResetTextMetadata(bird.id) },
             canResetText = bird.imageUrl.startsWith("file:///android_asset/"),
+            canDelete = !bird.imageUrl.startsWith("file:///android_asset/"),
+            onDelete = { birdPendingDeletion = bird },
             onListMembershipChange = { list, isMember ->
                 onListMembershipChange(bird.id, list, isMember)
             }
@@ -211,6 +259,19 @@ fun BirdListScreen(
         )
     }
 
+    birdPendingDeletion?.let { bird ->
+        DeleteBirdConfirmationDialog(
+            bird = bird,
+            onConfirm = {
+                onScreenPress()
+                onDeleteCustomBird(bird)
+                if (selectedBirdId == bird.id) selectedBirdId = null
+                birdPendingDeletion = null
+            },
+            onDismiss = { birdPendingDeletion = null }
+        )
+    }
+
     importStatus.message?.let { message ->
         ImportResultDialog(
             message = message,
@@ -240,33 +301,9 @@ fun BirdListScreen(
 }
 
 @Composable
-private fun ArrangeModeBar(
-    onCancel: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "Arrange birds",
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.titleMedium
-        )
-        TextButton(onClick = onCancel) {
-            Text("Cancel")
-        }
-        TextButton(onClick = onConfirm) {
-            Text("Save")
-        }
-    }
-}
-
-@Composable
 private fun DisplayModeSelector(
     displayMode: DisplayMode,
+    gridColumns: Int,
     onDisplayModeChange: (DisplayMode) -> Unit,
     onAddCustomBird: () -> Unit,
     onOpenSettings: () -> Unit
@@ -277,6 +314,18 @@ private fun DisplayModeSelector(
             .padding(horizontal = 10.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.End
     ) {
+        if (displayMode == DisplayMode.Grid) {
+            Text(
+                text = "$gridColumns columns",
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            Spacer(modifier = Modifier.weight(1f))
+        }
         DisplayMode.entries.forEach { mode ->
             TextButton(
                 onClick = { onDisplayModeChange(mode) },
@@ -416,29 +465,63 @@ private fun SettingsRadioRow(
 @Composable
 private fun BirdGrid(
     birds: List<Bird>,
-    isArrangeMode: Boolean,
+    gridColumns: Int,
     canArrange: Boolean,
     onBirdClick: (Bird) -> Unit,
+    onGridColumnsChange: (Int) -> Unit,
     onStartArrange: () -> Unit,
-    onMoveBird: (Int, Int) -> Unit
+    onMoveBird: (Int, Int) -> Unit,
+    onFinishArrange: () -> Unit,
+    onCancelArrange: () -> Unit
 ) {
     val gridState = rememberLazyGridState()
+    val coroutineScope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
     var draggedBirdId by remember { mutableStateOf<Long?>(null) }
+    var draggedOffset by remember { mutableStateOf(Offset.Zero) }
     var pointerPosition by remember { mutableStateOf(Offset.Zero) }
+    var zoomAccumulator by remember { mutableFloatStateOf(1f) }
     val currentBirds by rememberUpdatedState(birds)
-    val currentArrangeMode by rememberUpdatedState(isArrangeMode)
+    val currentCanArrange by rememberUpdatedState(canArrange)
+    val currentGridColumns by rememberUpdatedState(gridColumns)
+    val currentOnGridColumnsChange by rememberUpdatedState(onGridColumnsChange)
     val currentOnStartArrange by rememberUpdatedState(onStartArrange)
     val currentOnMoveBird by rememberUpdatedState(onMoveBird)
+    val currentOnFinishArrange by rememberUpdatedState(onFinishArrange)
+    val currentOnCancelArrange by rememberUpdatedState(onCancelArrange)
 
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 132.dp),
+        columns = GridCells.Fixed(gridColumns),
         state = gridState,
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(gridState) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val event = awaitPointerEvent()
+                        if (event.changes.count { it.pressed } >= 2) {
+                            zoomAccumulator *= event.calculateZoom()
+                            val nextColumns = when {
+                                zoomAccumulator > 1.12f -> currentGridColumns - 1
+                                zoomAccumulator < 0.89f -> currentGridColumns + 1
+                                else -> currentGridColumns
+                            }.coerceIn(2, 6)
+
+                            if (nextColumns != currentGridColumns) {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                currentOnGridColumnsChange(nextColumns)
+                                zoomAccumulator = 1f
+                            }
+                            event.changes.forEach { it.consume() }
+                        }
+                    } while (event.changes.any { it.pressed })
+                }
+            }
+            .pointerInput(gridState) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = { offset ->
-                        if (!canArrange) {
+                        if (!currentCanArrange) {
                             draggedBirdId = null
                             return@detectDragGesturesAfterLongPress
                         }
@@ -450,17 +533,22 @@ private fun BirdGrid(
                                     offset.y <= info.offset.y + info.size.height
                             }
                         draggedBirdId = item?.key as? Long
+                        draggedOffset = Offset.Zero
                         pointerPosition = offset
-                        if (draggedBirdId != null && !currentArrangeMode) {
+                        if (draggedBirdId != null) {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             currentOnStartArrange()
                         }
                     },
                     onDrag = { change, dragAmount ->
                         change.consume()
+                        draggedOffset += dragAmount
                         pointerPosition += dragAmount
 
                         val draggedId = draggedBirdId ?: return@detectDragGesturesAfterLongPress
-                        val target = gridState.layoutInfo.visibleItemsInfo
+                        val visibleItems = gridState.layoutInfo.visibleItemsInfo
+                        val draggedItem = visibleItems.firstOrNull { it.key == draggedId }
+                        val target = visibleItems
                             .firstOrNull { info ->
                                 pointerPosition.x >= info.offset.x &&
                                     pointerPosition.x <= info.offset.x + info.size.width &&
@@ -471,13 +559,40 @@ private fun BirdGrid(
                         if (targetId != null && targetId != draggedId) {
                             val fromIndex = currentBirds.indexOfFirst { it.id == draggedId }
                             val toIndex = currentBirds.indexOfFirst { it.id == targetId }
-                            if (fromIndex >= 0 && toIndex >= 0) {
+                            if (fromIndex >= 0 && toIndex >= 0 && draggedItem != null) {
+                                draggedOffset += Offset(
+                                    x = (draggedItem.offset.x - target.offset.x).toFloat(),
+                                    y = (draggedItem.offset.y - target.offset.y).toFloat()
+                                )
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 currentOnMoveBird(fromIndex, toIndex)
                             }
                         }
+
+                        val edgeSize = 72.dp.toPx()
+                        val scrollAmount = when {
+                            pointerPosition.y < edgeSize -> -20.dp.toPx()
+                            pointerPosition.y > gridState.layoutInfo.viewportSize.height - edgeSize ->
+                                20.dp.toPx()
+                            else -> 0f
+                        }
+                        if (scrollAmount != 0f) {
+                            coroutineScope.launch { gridState.scrollBy(scrollAmount) }
+                        }
                     },
-                    onDragEnd = { draggedBirdId = null },
-                    onDragCancel = { draggedBirdId = null }
+                    onDragEnd = {
+                        if (draggedBirdId != null) {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            currentOnFinishArrange()
+                        }
+                        draggedBirdId = null
+                        draggedOffset = Offset.Zero
+                    },
+                    onDragCancel = {
+                        draggedBirdId = null
+                        draggedOffset = Offset.Zero
+                        currentOnCancelArrange()
+                    }
                 )
             },
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -491,7 +606,9 @@ private fun BirdGrid(
         gridItems(items = birds, key = { it.id }) { bird ->
             BirdTile(
                 bird = bird,
-                isArrangeMode = isArrangeMode,
+                modifier = Modifier.animateItem(),
+                isDragged = bird.id == draggedBirdId,
+                dragOffset = if (bird.id == draggedBirdId) draggedOffset else Offset.Zero,
                 onClick = { onBirdClick(bird) }
             )
         }
@@ -502,11 +619,98 @@ private fun BirdGrid(
 @Composable
 private fun BirdCompactList(
     birds: List<Bird>,
+    canArrange: Boolean,
     onBirdClick: (Bird) -> Unit,
-    onPlayAudio: (String) -> Unit
+    playingAudioAsset: String?,
+    onToggleAudio: (String) -> Unit,
+    onStartArrange: () -> Unit,
+    onMoveBird: (Int, Int) -> Unit,
+    onFinishArrange: () -> Unit,
+    onCancelArrange: () -> Unit
 ) {
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    var draggedBirdId by remember { mutableStateOf<Long?>(null) }
+    var draggedOffset by remember { mutableFloatStateOf(0f) }
+    var pointerY by remember { mutableFloatStateOf(0f) }
+    val currentBirds by rememberUpdatedState(birds)
+    val currentCanArrange by rememberUpdatedState(canArrange)
+    val currentOnStartArrange by rememberUpdatedState(onStartArrange)
+    val currentOnMoveBird by rememberUpdatedState(onMoveBird)
+    val currentOnFinishArrange by rememberUpdatedState(onFinishArrange)
+    val currentOnCancelArrange by rememberUpdatedState(onCancelArrange)
+
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        state = listState,
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(listState) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { offset ->
+                        if (!currentCanArrange) {
+                            draggedBirdId = null
+                            return@detectDragGesturesAfterLongPress
+                        }
+                        val item = listState.layoutInfo.visibleItemsInfo.firstOrNull { info ->
+                            offset.y >= info.offset && offset.y <= info.offset + info.size
+                        }
+                        draggedBirdId = item?.key as? Long
+                        draggedOffset = 0f
+                        pointerY = offset.y
+                        if (draggedBirdId != null) {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            currentOnStartArrange()
+                        }
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        draggedOffset += dragAmount.y
+                        pointerY += dragAmount.y
+
+                        val draggedId = draggedBirdId ?: return@detectDragGesturesAfterLongPress
+                        val visibleItems = listState.layoutInfo.visibleItemsInfo
+                        val draggedItem = visibleItems.firstOrNull { it.key == draggedId }
+                        val target = visibleItems.firstOrNull { info ->
+                            pointerY >= info.offset && pointerY <= info.offset + info.size
+                        }
+                        val targetId = target?.key as? Long
+                        if (targetId != null && targetId != draggedId && draggedItem != null) {
+                            val fromIndex = currentBirds.indexOfFirst { it.id == draggedId }
+                            val toIndex = currentBirds.indexOfFirst { it.id == targetId }
+                            if (fromIndex >= 0 && toIndex >= 0) {
+                                draggedOffset += (draggedItem.offset - target.offset).toFloat()
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                currentOnMoveBird(fromIndex, toIndex)
+                            }
+                        }
+
+                        val edgeSize = 72.dp.toPx()
+                        val scrollAmount = when {
+                            pointerY < edgeSize -> -20.dp.toPx()
+                            pointerY > listState.layoutInfo.viewportSize.height - edgeSize ->
+                                20.dp.toPx()
+                            else -> 0f
+                        }
+                        if (scrollAmount != 0f) {
+                            coroutineScope.launch { listState.scrollBy(scrollAmount) }
+                        }
+                    },
+                    onDragEnd = {
+                        if (draggedBirdId != null) {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            currentOnFinishArrange()
+                        }
+                        draggedBirdId = null
+                        draggedOffset = 0f
+                    },
+                    onDragCancel = {
+                        draggedBirdId = null
+                        draggedOffset = 0f
+                        currentOnCancelArrange()
+                    }
+                )
+            },
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             start = 10.dp,
             end = 10.dp,
@@ -515,65 +719,15 @@ private fun BirdCompactList(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         listItems(items = birds, key = { it.id }) { bird ->
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 104.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { onBirdClick(bird) },
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                Row(
-                    modifier = Modifier.padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(88.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color.White)
-                            .padding(6.dp)
-                    ) {
-                        AsyncImage(
-                            model = bird.imageUrl,
-                            contentDescription = bird.englishName,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Fit
-                        )
-                    }
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .weight(1f)
-                            .padding(start = 12.dp),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = bird.kanjiJapaneseName,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = bird.englishName,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = bird.scientificName,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Spacer(modifier = Modifier.size(2.dp))
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            bird.audioAssetPaths().forEachIndexed { index, assetPath ->
-                                TextButton(onClick = { onPlayAudio(assetPath) }) {
-                                    Text(text = "Play ${index + 1}")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            BirdListRow(
+                bird = bird,
+                modifier = Modifier.animateItem(),
+                isDragged = bird.id == draggedBirdId,
+                dragOffsetY = if (bird.id == draggedBirdId) draggedOffset else 0f,
+                onClick = { onBirdClick(bird) },
+                playingAudioAsset = playingAudioAsset,
+                onToggleAudio = onToggleAudio
+            )
         }
     }
 }
@@ -581,30 +735,36 @@ private fun BirdCompactList(
 @Composable
 private fun BirdTile(
     bird: Bird,
-    isArrangeMode: Boolean,
+    modifier: Modifier = Modifier,
+    isDragged: Boolean,
+    dragOffset: Offset,
     onClick: () -> Unit
 ) {
-    val transition = rememberInfiniteTransition(label = "bird-card-wiggle")
-    val rotation by transition.animateFloat(
-        initialValue = -1.1f,
-        targetValue = 1.1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 140),
-            repeatMode = RepeatMode.Reverse
+    val lift by animateFloatAsState(
+        targetValue = if (isDragged) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
         ),
-        label = "bird-card-rotation"
+        label = "bird-card-lift"
     )
 
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f)
+            .zIndex(lift)
             .graphicsLayer {
-                rotationZ = if (isArrangeMode) rotation else 0f
+                translationX = dragOffset.x
+                translationY = dragOffset.y
+                scaleX = 1f + (0.05f * lift)
+                scaleY = 1f + (0.05f * lift)
+                alpha = 1f - (0.12f * lift)
             }
             .clip(RoundedCornerShape(8.dp))
-            .clickable(enabled = !isArrangeMode, onClick = onClick),
-        color = Color.White
+            .clickable(enabled = !isDragged, onClick = onClick),
+        color = Color.White,
+        shadowElevation = (12f * lift).dp
     ) {
         AsyncImage(
             model = bird.imageUrl,
@@ -617,10 +777,169 @@ private fun BirdTile(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BirdListRow(
+    bird: Bird,
+    modifier: Modifier = Modifier,
+    isDragged: Boolean,
+    dragOffsetY: Float,
+    onClick: () -> Unit,
+    playingAudioAsset: String?,
+    onToggleAudio: (String) -> Unit
+) {
+    val lift by animateFloatAsState(
+        targetValue = if (isDragged) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "bird-row-lift"
+    )
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 104.dp)
+            .zIndex(lift)
+            .graphicsLayer {
+                translationY = dragOffsetY
+                scaleX = 1f + (0.025f * lift)
+                scaleY = 1f + (0.025f * lift)
+                alpha = 1f - (0.1f * lift)
+            }
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(enabled = !isDragged, onClick = onClick),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = (12f * lift).dp
+    ) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(88.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color.White)
+                    .padding(6.dp)
+            ) {
+                AsyncImage(
+                    model = bird.imageUrl,
+                    contentDescription = bird.englishName,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .weight(1f)
+                    .padding(start = 12.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = bird.kanjiJapaneseName,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = bird.englishName,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = bird.scientificName,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(modifier = Modifier.size(2.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    bird.audioAssetPaths().forEachIndexed { index, assetPath ->
+                        AudioPlaybackButton(
+                            assetPath = assetPath,
+                            callNumber = index + 1,
+                            isPlaying = playingAudioAsset == assetPath,
+                            onToggleAudio = onToggleAudio
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 private fun <T> List<T>.move(fromIndex: Int, toIndex: Int): List<T> {
     if (fromIndex == toIndex) return this
     return toMutableList().apply {
         add(toIndex, removeAt(fromIndex))
+    }
+}
+
+@Composable
+private fun AudioPlaybackButton(
+    assetPath: String,
+    callNumber: Int,
+    isPlaying: Boolean,
+    onToggleAudio: (String) -> Unit
+) {
+    IconButton(onClick = { onToggleAudio(assetPath) }) {
+        Box(contentAlignment = Alignment.BottomEnd) {
+            Icon(
+                imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                contentDescription = if (isPlaying) {
+                    "Stop bird call $callNumber"
+                } else {
+                    "Play bird call $callNumber"
+                },
+                tint = if (isPlaying) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                }
+            )
+            if (callNumber > 1) {
+                Text(
+                    text = callNumber.toString(),
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeleteBirdConfirmationDialog(
+    bird: Bird,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("Delete custom bird?", style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    "This permanently deletes ${bird.englishName.ifBlank { "this bird" }} " +
+                        "and its copied image and audio files."
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    TextButton(onClick = onConfirm) {
+                        Text("Delete")
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -630,10 +949,14 @@ private fun BirdDetailsDialog(
     bird: Bird,
     memberships: Set<BirdList>,
     onDismiss: () -> Unit,
-    onPlayAudio: (String) -> Unit,
+    playingAudioAsset: String?,
+    onToggleAudio: (String) -> Unit,
+    onScreenPress: () -> Unit,
     onEdit: () -> Unit,
     onResetText: () -> Unit,
     canResetText: Boolean,
+    canDelete: Boolean,
+    onDelete: () -> Unit,
     onListMembershipChange: (BirdList, Boolean) -> Unit
 ) {
     Dialog(
@@ -643,6 +966,14 @@ private fun BirdDetailsDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
+                .pointerInput(playingAudioAsset) {
+                    if (playingAudioAsset != null) {
+                        awaitPointerEventScope {
+                            awaitPointerEvent(pass = PointerEventPass.Initial)
+                            onScreenPress()
+                        }
+                    }
+                }
                 .padding(horizontal = 24.dp, vertical = 32.dp)
                 .widthIn(max = 520.dp)
                 .heightIn(max = 720.dp),
@@ -693,6 +1024,14 @@ private fun BirdDetailsDialog(
                     ) {
                         Text("Reset text")
                     }
+                    if (canDelete) {
+                        IconButton(onClick = onDelete) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete custom bird"
+                            )
+                        }
+                    }
                 }
 
                 FlowRow(
@@ -700,9 +1039,12 @@ private fun BirdDetailsDialog(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     bird.audioAssetPaths().forEachIndexed { index, assetPath ->
-                        TextButton(onClick = { onPlayAudio(assetPath) }) {
-                            Text(text = "Play ${index + 1}")
-                        }
+                        AudioPlaybackButton(
+                            assetPath = assetPath,
+                            callNumber = index + 1,
+                            isPlaying = playingAudioAsset == assetPath,
+                            onToggleAudio = onToggleAudio
+                        )
                     }
                 }
 
