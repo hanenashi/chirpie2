@@ -27,7 +27,8 @@ object BirdAssetSeeder {
                     czechName = info["czech"].orEmpty(),
                     scientificName = info["scientific"].orEmpty(),
                     imageUrl = "file:///android_asset/${birdJson.getString("jpg")}",
-                    audioAssetPath = audioPaths.joinToString(separator = "\n")
+                    audioAssetPath = audioPaths.joinToString(separator = "\n"),
+                    sortIndex = info["id"]?.toLongOrNull() ?: folder.hashCode().toLong()
                 )
             }
             .sortedBy { it.id }

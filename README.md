@@ -9,7 +9,9 @@ the app and loaded into a local Room database on first launch.
 
 ## Current State
 
-This checkpoint runs on Android and has been tested on a Pixel 8.
+The original offline-library checkpoint was tested on a Pixel 8. The features
+added in this checkpoint build and pass automated checks, but the interaction
+flows listed in [docs/TESTING.md](docs/TESTING.md) still need device testing.
 
 - Real Chirpie web assets imported:
   - 51 bird images
@@ -19,8 +21,26 @@ This checkpoint runs on Android and has been tested on a Pixel 8.
 - Room database seeded from bundled assets.
 - Jetpack Compose dark UI.
 - Square image grid of bird cards.
+- White card backgrounds and consistent image fitting.
+- Switchable card grid and compact bird list.
+- Per-row bird names and playback controls in compact list mode.
+- Persistent display mode and name-sorting settings.
+- Settings dialog with active-list placeholder and order reset.
+- Native long-press reordering in both grid and list modes with lift, haptic,
+  animated placement, edge auto-scroll, and drop persistence.
+- Pinch-to-resize grid density from two to six persistent columns.
+- Custom bird order persisted in Room with a non-destructive database migration.
+- Persistent Summer, Winter, Favorites, and Study bird lists.
+- Active-list filtering and per-bird list membership controls.
+- In-app editing of Japanese, romanized, English, scientific, and Czech names.
+- One-tap reset of edited names to bundled TXT source data.
+- In-app custom bird import with JPG/PNG, one or two MP3 files, and text fields.
+- Imported media copied into app-private storage for reliable offline use.
 - Bird detail dialog with Japanese, romanized, English, scientific, and Czech names.
+- Responsive, scrollable bird detail dialog for smaller screens.
 - Multiple MP3 playback buttons per bird using Android `MediaPlayer`.
+- Icon-based play/stop controls with tap-anywhere stop behavior.
+- Confirmed deletion of imported birds and their app-private media.
 - Gradle wrapper added for repeatable builds.
 
 ## Tech Stack
@@ -77,53 +97,33 @@ czech=Strakapoud japonský
 
 This should make future bird additions straightforward: add a folder with a
 text file, image, and MP3 files, then rebuild the app. A helper script for this
-workflow is planned.
+workflow is included:
+
+```bash
+python3 tools/import_bird.py \
+  --slug sample \
+  --metadata /path/to/sample.txt \
+  --image /path/to/sample.jpg \
+  --audio /path/to/sample_call.mp3 \
+  --dry-run
+```
+
+Remove `--dry-run` after validation. The importer rejects duplicate slugs and
+IDs, copies the media into the asset tree, and updates `birds.json` atomically.
+
+## Development Notes
+
+- [Architecture and data flow](docs/ARCHITECTURE.md)
+- [Physical-device test checklist](docs/TESTING.md)
 
 ## Roadmap
 
-### Near Term
-
-- Polish the current grid:
-  - white square card backgrounds
-  - cleaner detail dialog sizing
-  - better image fit consistency
-- Add display modes:
-  - card grid
-  - compact list with names and play buttons in each row
-- Add settings:
-  - display mode
-  - active list
-  - sort/order options
-  - reset order
-- Add local ordering:
-  - long press to enter arrange mode
-  - wiggle state
-  - drag/rearrange cards
-  - confirm/cancel
-  - save order locally
-
-### Mid Term
-
-- Saved bird lists:
-  - all birds
-  - summer birds
-  - winter birds
-  - favorites or study lists
-- Sorting presets:
-  - custom order
-  - Japanese
-  - English
-  - Czech
-  - scientific name
-- In-app text editing for bird metadata.
-- Reset edited text back to bundled source data.
-
 ### Later
 
-- Easier project-side bird import helper for JPG/PNG, MP3, and TXT files.
-- Optional in-app media import.
 - Custom transparent PNG graphics for playback buttons and other controls.
 - More complete parity with the original web Chirpie settings/edit behavior.
+- Split the current screen implementation into smaller focused Compose files.
+- Add database migration and custom media import integration tests.
 
 ## Notes
 
