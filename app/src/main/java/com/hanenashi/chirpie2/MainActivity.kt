@@ -8,7 +8,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.core.net.toUri
 import com.hanenashi.chirpie2.data.local.ChirpieDatabase
+import com.hanenashi.chirpie2.data.preferences.BirdPreferences
 import com.hanenashi.chirpie2.data.repository.BirdRepository
 import com.hanenashi.chirpie2.ui.screens.BirdListScreen
 import com.hanenashi.chirpie2.ui.theme.ChirpieTheme
@@ -21,8 +23,10 @@ class MainActivity : ComponentActivity() {
     private val viewModel: BirdListViewModel by viewModels {
         BirdListViewModelFactory(
             BirdRepository(
-                ChirpieDatabase.getInstance(this).birdDao()
-            )
+                ChirpieDatabase.getInstance(this).birdDao(),
+                this
+            ),
+            BirdPreferences(this)
         )
     }
 
@@ -34,8 +38,23 @@ class MainActivity : ComponentActivity() {
                 val uiState by viewModel.uiState.collectAsState()
                 BirdListScreen(
                     birds = uiState.birds,
+                    displayMode = uiState.displayMode,
+                    sortOrder = uiState.sortOrder,
+                    activeList = uiState.activeList,
+                    membershipsByBird = uiState.membershipsByBird,
+                    importStatus = uiState.importStatus,
                     isLoading = uiState.isLoading,
-                    onPlayAudio = ::playAudioAsset
+                    onPlayAudio = ::playAudioAsset,
+                    onDisplayModeChange = viewModel::setDisplayMode,
+                    onSortOrderChange = viewModel::setSortOrder,
+                    onActiveListChange = viewModel::setActiveList,
+                    onListMembershipChange = viewModel::setListMembership,
+                    onUpdateTextMetadata = viewModel::updateTextMetadata,
+                    onResetTextMetadata = viewModel::resetTextMetadata,
+                    onImportCustomBird = viewModel::importCustomBird,
+                    onDismissImportMessage = viewModel::clearImportMessage,
+                    onResetOrder = viewModel::resetOrder,
+                    onSaveOrder = viewModel::saveOrder
                 )
             }
         }
@@ -51,9 +70,18 @@ class MainActivity : ComponentActivity() {
         mediaPlayer?.release()
         mediaPlayer = null
 
-        val descriptor = assets.openFd(assetPath)
         mediaPlayer = MediaPlayer().apply {
-            setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+            if (assetPath.startsWith("file:")) {
+                setDataSource(this@MainActivity, assetPath.toUri())
+            } else {
+                assets.openFd(assetPath).use { descriptor ->
+                    setDataSource(
+                        descriptor.fileDescriptor,
+                        descriptor.startOffset,
+                        descriptor.length
+                    )
+                }
+            }
             setOnCompletionListener {
                 it.release()
                 if (mediaPlayer == it) mediaPlayer = null
@@ -61,6 +89,5 @@ class MainActivity : ComponentActivity() {
             prepare()
             start()
         }
-        descriptor.close()
     }
 }

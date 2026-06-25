@@ -13,7 +13,8 @@ data class Bird(
     val czechName: String,
     val scientificName: String,
     val imageUrl: String,
-    val audioAssetPath: String
+    val audioAssetPath: String,
+    val sortIndex: Long = id
 ) {
     fun audioAssetPaths(): List<String> = audioAssetPath
         .lines()
