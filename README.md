@@ -9,9 +9,10 @@ the app and loaded into a local Room database on first launch.
 
 ## Current State
 
-The original offline-library checkpoint was tested on a Pixel 8. The features
-added in this checkpoint build and pass automated checks, but the interaction
-flows listed in [docs/TESTING.md](docs/TESTING.md) still need device testing.
+The original offline-library checkpoint was tested on a Pixel 8. The current
+checkpoint builds and passes automated checks, and has also been installed and
+smoke-tested on a Pixel 10a. The broader regression checklist remains in
+[docs/TESTING.md](docs/TESTING.md).
 
 - Real Chirpie web assets imported:
   - 51 bird images
@@ -42,6 +43,20 @@ flows listed in [docs/TESTING.md](docs/TESTING.md) still need device testing.
 - Icon-based play/stop controls with tap-anywhere stop behavior.
 - Confirmed deletion of imported birds and their app-private media.
 - Gradle wrapper added for repeatable builds.
+
+## Controls
+
+- Tap a card or compact-list row to open bird details.
+- Tap a play icon to start a bird call. The active control changes to a stop
+  icon.
+- Tap the active stop icon, or anywhere else inside the app, to stop playback.
+- Android's system back gesture/button does not stop playback.
+- Long-press and drag a card or compact-list row to reorder it. Reordering is
+  available while viewing All birds in Custom order.
+- Pinch the grid to choose between two and six columns. The density persists.
+- Use **Add bird** to import JPG/PNG media, one or two MP3 files, and names.
+- Imported birds expose a delete icon in their detail dialog. Deletion requires
+  confirmation and removes the copied private media.
 
 ## Tech Stack
 
@@ -115,6 +130,7 @@ IDs, copies the media into the asset tree, and updates `birds.json` atomically.
 
 - [Architecture and data flow](docs/ARCHITECTURE.md)
 - [Physical-device test checklist](docs/TESTING.md)
+- Latest debug APK: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Roadmap
 

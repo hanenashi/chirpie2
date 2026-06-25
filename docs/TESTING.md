@@ -3,6 +3,14 @@
 Run this checklist on an Android phone before treating the current checkpoint
 as release-ready.
 
+## Current device status
+
+- Pixel 8: original offline-library checkpoint tested.
+- Pixel 10a: current APK installed through Kurochan ADB; launch, browsing,
+  animated reordering, and pinch density smoke-tested.
+- Full playback-stop, deletion, migration, rotation, accessibility, and
+  provider-backed import regression testing remains recommended.
+
 ## Install and migration
 
 - Install the previous version, launch it, then install the new APK over it.
@@ -19,6 +27,7 @@ as release-ready.
 - Start a call, tap elsewhere in the app, and confirm playback stops.
 - Start a call and use the system back gesture/button; confirm playback continues.
 - Confirm starting another call stops the previous one.
+- Let a call finish naturally and confirm its control returns to the play icon.
 - Verify images fit correctly in grid, list, and detail views.
 
 ## Sorting and arrangement
