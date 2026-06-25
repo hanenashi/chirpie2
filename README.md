@@ -42,6 +42,7 @@ smoke-tested on a Pixel 10a. The broader regression checklist remains in
 - Multiple MP3 playback buttons per bird using Android `MediaPlayer`.
 - Icon-based play/stop controls with tap-anywhere stop behavior.
 - Confirmed deletion of imported birds and their app-private media.
+- Custom Chirpie launcher icon with adaptive and legacy Android resources.
 - Gradle wrapper added for repeatable builds.
 
 ## Controls

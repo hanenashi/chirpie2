@@ -20,6 +20,8 @@ as release-ready.
 
 ## Display and playback
 
+- Confirm the Chirpie launcher icon renders cleanly as circle, squircle, and
+  rounded-square launcher masks.
 - Switch between card grid and compact list; restart and confirm persistence.
 - Open several bird details and play every available call.
 - Confirm the active call shows a stop icon.
